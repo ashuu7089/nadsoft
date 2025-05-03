@@ -10,7 +10,7 @@ const studentSchema = Joi.object({
       subject: Joi.string().required(),
       score: Joi.number().integer().min(0).max(100).required()
     })
-  ).required()
+  )
   .messages({
     'array.base': 'Marks must be an array',
     'array.empty': 'Marks cannot be empty',

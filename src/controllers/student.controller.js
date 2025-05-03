@@ -20,9 +20,9 @@ const createStudentAPI = async (req, res) => {
     }
 
     // Ensure marks are provided
-    if (!req.body.marks || !Array.isArray(req.body.marks) || req.body.marks.length === 0) {
-      return ApiError(res, 400, "Marks are required to create a student");
-    }
+    // if (!req.body.marks || !Array.isArray(req.body.marks) || req.body.marks.length === 0) {
+    //   return ApiError(res, 400, "Marks are required to create a student");
+    // }
 
     // Create student within the transaction
     const enterStudentData = await DB.studentModel.create(bodyValue, { transaction: t });
@@ -30,7 +30,7 @@ const createStudentAPI = async (req, res) => {
       await t.rollback();
       return ApiError(res, 400, "Failed to create student");
     }
-
+    if(bodyValue.mark){
     // Prepare and insert marks within the transaction
     const marksData = req.body.marks.map((mark) => ({
       ...mark,
@@ -45,16 +45,14 @@ const createStudentAPI = async (req, res) => {
 
     // Commit transaction only if both insertions succeed
     await t.commit();
-    const responseData = {
-      student: enterStudentData,
-      marks: enterMarksData,
-    };
+  }
+
     return ApiSuccess(
       res,
       200,
       true,
       "Student and marks created successfully",
-      responseData
+      enterStudentData
     );
 
   } catch (error) {
