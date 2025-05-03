@@ -9,56 +9,45 @@ const idValidation = require("../validations/idValidation");
 
 // Create Student
 const createStudentAPI = async (req, res) => {
-  const t = await DB.sequelize.transaction(); // Start transaction
+  const t = await DB.sequelize.transaction();
 
   try {
     // Validate request body
-    const { error: bodyError, value: bodyValue } =
-      studentValidation.studentSchema.validate(req.body);
+    const { error: bodyError, value: bodyValue } = studentValidation.studentSchema.validate(req.body);
     if (bodyError) {
       return ApiError(res, 400, bodyError.details[0].message);
     }
 
-    // Ensure marks are provided
-    // if (!req.body.marks || !Array.isArray(req.body.marks) || req.body.marks.length === 0) {
-    //   return ApiError(res, 400, "Marks are required to create a student");
-    // }
-
-    // Create student within the transaction
+    // Create student
     const enterStudentData = await DB.studentModel.create(bodyValue, { transaction: t });
     if (!enterStudentData) {
       await t.rollback();
       return ApiError(res, 400, "Failed to create student");
     }
-    if(bodyValue.mark){
-    // Prepare and insert marks within the transaction
-    const marksData = req.body.marks.map((mark) => ({
-      ...mark,
-      student_id: enterStudentData.id,
-    }));
 
-    const enterMarksData = await DB.marksModel.bulkCreate(marksData, { transaction: t });
-    if (!enterMarksData) {
-      await t.rollback();
-      return ApiError(res, 400, "Failed to create marks");
+    // If marks are provided, insert them
+    if (Array.isArray(req.body.marks) && req.body.marks.length > 0) {
+      const marksData = req.body.marks.map((mark) => ({
+        ...mark,
+        student_id: enterStudentData.id,
+      }));
+
+      const enterMarksData = await DB.marksModel.bulkCreate(marksData, { transaction: t });
+      if (!enterMarksData) {
+        await t.rollback();
+        return ApiError(res, 400, "Failed to create marks");
+      }
     }
 
-    // Commit transaction only if both insertions succeed
+    // Commit transaction if everything went fine
     await t.commit();
-  }
 
-    return ApiSuccess(
-      res,
-      200,
-      true,
-      "Student and marks created successfully",
-      enterStudentData
-    );
+    return ApiSuccess(res, 200, true, "Student and (if provided) marks created successfully", enterStudentData);
 
   } catch (error) {
-    await t.rollback(); // Rollback on any error
-    console.error("Error in Student", error);
-    return ApiError(res, 400, error?.message);
+    await t.rollback();
+    console.error("Error in Student creation:", error);
+    return ApiError(res, 400, error?.message || "Something went wrong");
   }
 };
 
